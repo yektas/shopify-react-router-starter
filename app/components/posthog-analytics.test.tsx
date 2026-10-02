@@ -1,32 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-const useEffectMock = vi.hoisted(() => vi.fn());
-const useRefMock = vi.hoisted(() => vi.fn());
-const readyRef = vi.hoisted(() => ({ current: false }));
-const locationState = vi.hoisted(() => ({
-  current: { pathname: "/app", search: "" },
-}));
-const posthogMock = vi.hoisted(() => ({
-  init: vi.fn(),
-  identify: vi.fn(),
-  reset: vi.fn(),
-  capture: vi.fn(),
-  get_distinct_id: vi.fn(),
-}));
-
-vi.mock("react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react")>()),
-  useEffect: useEffectMock,
-  useRef: useRefMock,
-}));
-
-vi.mock("react-router", () => ({
-  useLocation: () => locationState.current,
-}));
-
-vi.mock("posthog-js", () => ({ posthog: posthogMock }));
-
-import { PostHogAnalytics } from "./posthog-analytics";
+import {
+  capturePostHogPageView,
+  initializePostHogSession,
+  type PostHogAnalyticsClient,
+} from "./posthog-analytics";
 
 const config = {
   apiKey: "phc_key",
@@ -34,61 +12,106 @@ const config = {
   shop: { domain: "snowdevil.myshopify.com", name: "Snowdevil" },
 };
 
+interface PostHogCalls {
+  initializedWith: string[];
+  apiHosts: string[];
+  resets: number;
+  identifiedDomains: string[];
+  identifiedNames: Array<string | undefined>;
+  capturedEvents: string[];
+  distinctId: string;
+}
+
+function createPostHogClient(distinctId = "") {
+  const calls: PostHogCalls = {
+    initializedWith: [],
+    apiHosts: [],
+    resets: 0,
+    identifiedDomains: [],
+    identifiedNames: [],
+    capturedEvents: [],
+    distinctId,
+  };
+
+  const client = {
+    init(apiKey, options) {
+      calls.initializedWith.push(apiKey);
+      calls.apiHosts.push(options?.api_host ?? "");
+    },
+    get_distinct_id() {
+      return calls.distinctId;
+    },
+    reset() {
+      calls.resets += 1;
+      calls.distinctId = "";
+    },
+    identify(domain, properties) {
+      calls.identifiedDomains.push(domain);
+      calls.identifiedNames.push(properties?.shop_name);
+      calls.distinctId = domain;
+    },
+    capture(event) {
+      calls.capturedEvents.push(event);
+    },
+  } satisfies PostHogAnalyticsClient;
+
+  return { client, calls };
+}
+
 describe("PostHogAnalytics", () => {
-  const effects: Array<() => void | (() => void)> = [];
-
-  beforeEach(() => {
-    effects.length = 0;
-    readyRef.current = false;
-    locationState.current = { pathname: "/app", search: "" };
-    useEffectMock.mockReset();
-    useEffectMock.mockImplementation((effect) => effects.push(effect));
-    useRefMock.mockReset();
-    useRefMock.mockImplementation(() => readyRef);
-    posthogMock.init.mockReset();
-    posthogMock.identify.mockReset();
-    posthogMock.reset.mockReset();
-    posthogMock.capture.mockReset();
-    posthogMock.get_distinct_id.mockReset();
-  });
-
   it("initializes, identifies the shop, and captures the first pageview", () => {
-    posthogMock.get_distinct_id.mockReturnValue("snowdevil.myshopify.com");
+    const { client, calls } = createPostHogClient(config.shop.domain);
 
-    PostHogAnalytics({ config });
-    effects.forEach((effect) => effect());
-
-    expect(posthogMock.init).toHaveBeenCalledWith("phc_key", {
-      api_host: "https://eu.i.posthog.com",
-      capture_pageview: false,
-      person_profiles: "identified_only",
-    });
-    expect(posthogMock.identify).toHaveBeenCalledWith(
-      "snowdevil.myshopify.com",
-      { shop_name: "Snowdevil" },
+    const isReady = initializePostHogSession(
+      client,
+      config.apiKey,
+      config.apiHost,
+      config.shop.domain,
+      config.shop.name,
+      false,
     );
-    expect(posthogMock.capture).toHaveBeenCalledWith("$pageview");
+
+    capturePostHogPageView(client, isReady);
+
+    expect(calls.initializedWith).toEqual(["phc_key"]);
+    expect(calls.apiHosts).toEqual(["https://eu.i.posthog.com"]);
+    expect(calls.identifiedDomains).toEqual(["snowdevil.myshopify.com"]);
+    expect(calls.identifiedNames).toEqual(["Snowdevil"]);
+    expect(calls.capturedEvents).toEqual(["$pageview"]);
   });
 
   it("resets before identifying a different shop", () => {
-    posthogMock.get_distinct_id.mockReturnValue("previous.myshopify.com");
+    const { client, calls } = createPostHogClient("previous.myshopify.com");
 
-    PostHogAnalytics({ config });
-    effects[0]();
-
-    expect(posthogMock.reset).toHaveBeenCalledOnce();
-    expect(posthogMock.identify).toHaveBeenCalledWith(
-      "snowdevil.myshopify.com",
-      { shop_name: "Snowdevil" },
+    initializePostHogSession(
+      client,
+      config.apiKey,
+      config.apiHost,
+      config.shop.domain,
+      config.shop.name,
+      false,
     );
+
+    expect(calls.resets).toBe(1);
+    expect(calls.identifiedDomains).toEqual(["snowdevil.myshopify.com"]);
   });
 
-  it("does not initialize when analytics is disabled", () => {
-    PostHogAnalytics({ config: null });
-    effects.forEach((effect) => effect());
+  it("does not initialize or capture when analytics is disabled", () => {
+    const { client, calls } = createPostHogClient();
 
-    expect(posthogMock.init).not.toHaveBeenCalled();
-    expect(posthogMock.identify).not.toHaveBeenCalled();
-    expect(posthogMock.capture).not.toHaveBeenCalled();
+    const isReady = initializePostHogSession(
+      client,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+    );
+
+    capturePostHogPageView(client, isReady);
+
+    expect(calls.initializedWith).toEqual([]);
+    expect(calls.identifiedDomains).toEqual([]);
+    expect(calls.capturedEvents).toEqual([]);
   });
 });

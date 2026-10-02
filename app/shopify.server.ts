@@ -1,15 +1,10 @@
 import "@shopify/shopify-app-react-router/adapters/node";
-import {
-  ApiVersion,
-  AppDistribution,
-  shopifyApp,
-} from "@shopify/shopify-app-react-router/server";
+import { ApiVersion, AppDistribution, shopifyApp } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
-import {
-  markAppInstalled,
-  notifyAppInstalled,
-} from "./models/ops-notifier.server";
+import { markAppInstalled, notifyAppInstalled } from "./models/ops-notifier.server";
+
+const shopCustomDomain = process.env.SHOP_CUSTOM_DOMAIN;
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -22,12 +17,9 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ session, admin }) => {
       const isNewInstallation = await markAppInstalled(session.shop);
+
       if (isNewInstallation) {
-        await notifyAppInstalled(
-          session.shop,
-          session.accessToken ?? session.id,
-          admin,
-        );
+        await notifyAppInstalled(session.shop, session.accessToken ?? session.id, admin);
       }
     },
   },
@@ -35,16 +27,21 @@ const shopify = shopifyApp({
   future: {
     expiringOfflineAccessTokens: true,
   },
-  ...(process.env.SHOP_CUSTOM_DOMAIN
-    ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
-    : {}),
+  customShopDomains: shopCustomDomain ? [shopCustomDomain] : undefined,
 });
 
 export default shopify;
+
 export const apiVersion = ApiVersion.October25;
+
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
+
 export const authenticate = shopify.authenticate;
+
 export const unauthenticated = shopify.unauthenticated;
+
 export const login = shopify.login;
+
 export const registerWebhooks = shopify.registerWebhooks;
+
 export const sessionStorage = shopify.sessionStorage;

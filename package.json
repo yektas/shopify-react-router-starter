@@ -41,9 +41,11 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router": "7.18.2",
+    "valibot": "1.5.0",
     "vite-tsconfig-paths": "^6.0.4"
   },
   "devDependencies": {
+    "@oxlint/plugins": "1.85.0",
     "@shopify/api-codegen-preset": "^2.0.0",
     "@shopify/polaris-types": "1.0.1",
     "@tailwindcss/vite": "4.3.2",

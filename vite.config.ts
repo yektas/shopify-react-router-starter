@@ -20,6 +20,7 @@ const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost")
   .hostname;
 
 let hmrConfig;
+
 if (host === "localhost") {
   hmrConfig = {
     protocol: "ws",

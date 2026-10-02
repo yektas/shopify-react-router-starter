@@ -1,8 +1,15 @@
+import { array, nullable, object, optional, parse, string } from "valibot";
+
 const DEFAULT_PARTNER_API_VERSION = "2026-07";
+
 const SHOP_DOMAIN_PATTERN = /^([a-z0-9][a-z0-9-]*)\.myshopify\.com$/i;
+
 const HANDLE_PATTERN = /^[a-z0-9][a-z0-9_-]*$/i;
+
 const PARTNER_API_VERSION_PATTERN = /^\d{4}-(01|04|07|10)$/;
+
 const SHOP_GID_PATTERN = /^gid:\/\/shopify\/Shop\/\d+$/;
+
 const APP_GID_PATTERN = /^gid:\/\/shopify\/App\/\d+$/;
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -27,15 +34,32 @@ export interface ManagedSubscription {
   items: Array<{ handle: string; description: string | null }>;
 }
 
-export type FetchLike = (
-  input: string | URL | Request,
-  init?: RequestInit,
-) => Promise<Response>;
+export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-interface ActiveSubscriptionResponse {
-  data?: { activeSubscription?: ManagedSubscription | null } | null;
-  errors?: Array<{ message?: string }> | null;
-}
+const ActiveSubscriptionResponseSchema = object({
+  data: optional(
+    nullable(
+      object({
+        activeSubscription: optional(
+          nullable(
+            object({
+              shop: object({ id: string(), myshopifyDomain: string() }),
+              trialEndsAt: nullable(string()),
+              currentBillingCycle: nullable(object({ startTime: string(), endTime: string() })),
+              items: array(
+                object({
+                  handle: string(),
+                  description: nullable(string()),
+                }),
+              ),
+            }),
+          ),
+        ),
+      }),
+    ),
+  ),
+  errors: optional(nullable(array(object({ message: optional(nullable(string())) })))),
+});
 
 export const ACTIVE_SUBSCRIPTION_QUERY = [
   "#graphql",
@@ -53,6 +77,7 @@ export function getShopifyAppPricingConfig(
   env: Environment = process.env,
 ): ShopifyAppPricingConfig {
   const appHandle = env.SHOPIFY_APP_HANDLE?.trim().toLowerCase() || null;
+
   if (appHandle && !HANDLE_PATTERN.test(appHandle)) {
     throw new Error("SHOPIFY_APP_HANDLE is not a valid Shopify app handle");
   }
@@ -62,9 +87,9 @@ export function getShopifyAppPricingConfig(
     "SHOPIFY_PARTNER_APP_ID",
     "SHOPIFY_PARTNER_API_TOKEN",
   ] as const;
-  const hasAnyPartnerSetting = requiredSettings.some((name) =>
-    env[name]?.trim(),
-  );
+
+  const hasAnyPartnerSetting = requiredSettings.some((name) => env[name]?.trim());
+
   const missingPartnerApiSettings = hasAnyPartnerSetting
     ? requiredSettings.filter((name) => !env[name]?.trim())
     : [...requiredSettings];
@@ -76,21 +101,19 @@ export function getShopifyAppPricingConfig(
   const organizationId = env.SHOPIFY_PARTNER_ORGANIZATION_ID!.trim();
   const appId = env.SHOPIFY_PARTNER_APP_ID!.trim();
   const accessToken = env.SHOPIFY_PARTNER_API_TOKEN!.trim();
-  const apiVersion =
-    env.SHOPIFY_PARTNER_API_VERSION?.trim() || DEFAULT_PARTNER_API_VERSION;
+
+  const apiVersion = env.SHOPIFY_PARTNER_API_VERSION?.trim() || DEFAULT_PARTNER_API_VERSION;
 
   if (!/^\d+$/.test(organizationId)) {
-    throw new Error(
-      "SHOPIFY_PARTNER_ORGANIZATION_ID must be a numeric organization ID",
-    );
+    throw new Error("SHOPIFY_PARTNER_ORGANIZATION_ID must be a numeric organization ID");
   }
+
   if (!APP_GID_PATTERN.test(appId)) {
     throw new Error("SHOPIFY_PARTNER_APP_ID must be a Shopify App GID");
   }
+
   if (!PARTNER_API_VERSION_PATTERN.test(apiVersion)) {
-    throw new Error(
-      "SHOPIFY_PARTNER_API_VERSION must use a quarterly YYYY-MM version",
-    );
+    throw new Error("SHOPIFY_PARTNER_API_VERSION must use a quarterly YYYY-MM version");
   }
 
   return {
@@ -100,19 +123,17 @@ export function getShopifyAppPricingConfig(
   };
 }
 
-export function buildShopifyHostedPricingUrl(
-  shop: string,
-  appHandle: string,
-): string {
+export function buildShopifyHostedPricingUrl(shop: string, appHandle: string): string {
   const storeHandle = shop.trim().match(SHOP_DOMAIN_PATTERN)?.[1];
+
   if (!storeHandle) {
     throw new Error("Cannot build pricing URL from an invalid shop domain");
   }
+
   const normalizedAppHandle = appHandle.trim().toLowerCase();
+
   if (!HANDLE_PATTERN.test(normalizedAppHandle)) {
-    throw new Error(
-      "Cannot build pricing URL from an invalid Shopify app handle",
-    );
+    throw new Error("Cannot build pricing URL from an invalid Shopify app handle");
   }
 
   return (
@@ -131,9 +152,7 @@ export async function readActiveSubscription(
   fetchImpl: FetchLike = fetch,
 ): Promise<ManagedSubscription | null> {
   if (!SHOP_GID_PATTERN.test(shopId)) {
-    throw new Error(
-      "Partner API subscription lookup requires a Shopify Shop GID",
-    );
+    throw new Error("Partner API subscription lookup requires a Shopify Shop GID");
   }
 
   const endpoint =
@@ -142,6 +161,7 @@ export async function readActiveSubscription(
     "/api/" +
     config.apiVersion +
     "/graphql.json";
+
   const response = await fetchImpl(endpoint, {
     method: "POST",
     headers: {
@@ -156,56 +176,40 @@ export async function readActiveSubscription(
     signal: AbortSignal.timeout(10_000),
   });
 
-  const payload = (await response.json()) as ActiveSubscriptionResponse;
-  const errors =
-    payload.errors?.flatMap((error) =>
-      error.message ? [error.message] : [],
-    ) ?? [];
+  const payload = parse(ActiveSubscriptionResponseSchema, await response.json());
+
+  const errors = payload.errors?.flatMap((error) => (error.message ? [error.message] : [])) ?? [];
+
   if (!response.ok || errors.length > 0) {
-    throw new Error(
-      errors.join(", ") ||
-        "Shopify Partner API returned HTTP " + response.status,
-    );
+    throw new Error(errors.join(", ") || "Shopify Partner API returned HTTP " + response.status);
   }
+
   if (!payload.data || !("activeSubscription" in payload.data)) {
-    throw new Error(
-      "Shopify Partner API response omitted activeSubscription",
-    );
+    throw new Error("Shopify Partner API response omitted activeSubscription");
   }
 
   const subscription = payload.data.activeSubscription ?? null;
+
   if (!subscription) return null;
+
   if (
     subscription.shop?.id !== shopId ||
-    subscription.shop?.myshopifyDomain?.trim().toLowerCase() !==
-      expectedShop.trim().toLowerCase()
+    subscription.shop?.myshopifyDomain?.trim().toLowerCase() !== expectedShop.trim().toLowerCase()
   ) {
-    throw new Error(
-      "Shopify subscription did not match the authenticated shop",
-    );
+    throw new Error("Shopify subscription did not match the authenticated shop");
   }
-  if (
-    !Array.isArray(subscription.items) ||
-    subscription.items.some(
-      (item) =>
-        !item ||
-        typeof item.handle !== "string" ||
-        !item.handle ||
-        (item.description !== null && typeof item.description !== "string"),
-    )
-  ) {
+
+  if (subscription.items.some((item) => item.handle.length === 0)) {
     throw new Error("Shopify subscription items are invalid");
   }
+
   validateOptionalDate(subscription.trialEndsAt, "trial end");
+
   if (subscription.currentBillingCycle) {
-    const start = validateDate(
-      subscription.currentBillingCycle.startTime,
-      "billing cycle start",
-    );
-    const end = validateDate(
-      subscription.currentBillingCycle.endTime,
-      "billing cycle end",
-    );
+    const start = validateDate(subscription.currentBillingCycle.startTime, "billing cycle start");
+
+    const end = validateDate(subscription.currentBillingCycle.endTime, "billing cycle end");
+
     if (end <= start) {
       throw new Error("Shopify billing cycle dates are invalid");
     }
@@ -220,8 +224,10 @@ function validateOptionalDate(value: string | null, label: string) {
 
 function validateDate(value: string, label: string) {
   const date = new Date(value);
+
   if (!value || Number.isNaN(date.getTime())) {
     throw new Error("Shopify " + label + " date is invalid");
   }
+
   return date;
 }

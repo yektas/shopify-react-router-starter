@@ -4,6 +4,54 @@ import { posthog } from "posthog-js";
 
 import type { PostHogConfig } from "../lib/posthog";
 
+export interface PostHogAnalyticsClient {
+  capture(event: "$pageview"): void;
+  get_distinct_id(): string;
+  identify(domain: string, properties: { shop_name: string | undefined }): void;
+  init(
+    apiKey: string,
+    options: {
+      api_host: string;
+      capture_pageview: false;
+      person_profiles: "identified_only";
+    },
+  ): void;
+  reset(): void;
+}
+
+export function initializePostHogSession(
+  client: PostHogAnalyticsClient,
+  apiKey: string | undefined,
+  apiHost: string | undefined,
+  shopDomain: string | undefined,
+  shopName: string | undefined,
+  isReady: boolean,
+): boolean {
+  if (!apiKey || !apiHost) return false;
+
+  if (!isReady) {
+    client.init(apiKey, {
+      api_host: apiHost,
+      capture_pageview: false,
+      person_profiles: "identified_only",
+    });
+  }
+
+  if (shopDomain) {
+    if (client.get_distinct_id() !== shopDomain) {
+      client.reset();
+    }
+
+    client.identify(shopDomain, { shop_name: shopName });
+  }
+
+  return true;
+}
+
+export function capturePostHogPageView(client: PostHogAnalyticsClient, isReady: boolean): void {
+  if (isReady) client.capture("$pageview");
+}
+
 export function PostHogAnalytics({ config }: { config: PostHogConfig | null }) {
   const apiKey = config?.apiKey;
   const apiHost = config?.apiHost;
@@ -15,26 +63,18 @@ export function PostHogAnalytics({ config }: { config: PostHogConfig | null }) {
   useEffect(() => {
     if (!apiKey || !apiHost) return;
 
-    if (!ready.current) {
-      posthog.init(apiKey, {
-        api_host: apiHost,
-        capture_pageview: false,
-        person_profiles: "identified_only",
-      });
-      ready.current = true;
-    }
-
-    if (shopDomain) {
-      if (posthog.get_distinct_id() !== shopDomain) {
-        posthog.reset();
-      }
-      posthog.identify(shopDomain, { shop_name: shopName });
-    }
+    ready.current = initializePostHogSession(
+      posthog,
+      apiKey,
+      apiHost,
+      shopDomain,
+      shopName,
+      ready.current,
+    );
   }, [apiKey, apiHost, shopDomain, shopName]);
 
   useEffect(() => {
-    if (!ready.current) return;
-    posthog.capture("$pageview");
+    capturePostHogPageView(posthog, ready.current);
   }, [location.pathname, location.search]);
 
   return null;

@@ -1,8 +1,10 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { safeParse } from "valibot";
 import { markBillingUninstalled } from "../models/billing.server";
 import {
+  AppUninstalledWebhookPayloadSchema,
   markAppUninstalled,
   notifyAppUninstalled,
 } from "../models/ops-notifier.server";
@@ -21,7 +23,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   await markBillingUninstalled(shop);
   await markAppUninstalled(shop);
-  await notifyAppUninstalled(shop, webhookId, payload);
+  const profilePayload = safeParse(AppUninstalledWebhookPayloadSchema, payload);
+  await notifyAppUninstalled(
+    shop,
+    webhookId,
+    profilePayload.success ? profilePayload.output : undefined,
+  );
 
   return new Response();
 };

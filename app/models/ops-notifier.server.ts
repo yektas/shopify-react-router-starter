@@ -1,5 +1,7 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
+import { array, nullable, object, optional, parse, string, type InferOutput } from "valibot";
 
 import db from "../db.server";
 
@@ -26,19 +28,77 @@ interface OpsEvent {
 
 type AdminGraphqlClient = Pick<AdminApiContext, "graphql">;
 
+export const AppUninstalledWebhookPayloadSchema = object({
+  name: optional(nullable(string())),
+  shop_owner: optional(nullable(string())),
+  email: optional(nullable(string())),
+  country_code: optional(nullable(string())),
+  currency: optional(nullable(string())),
+  iana_timezone: optional(nullable(string())),
+  plan_display_name: optional(nullable(string())),
+});
+
+export type AppUninstalledWebhookPayload = InferOutput<typeof AppUninstalledWebhookPayloadSchema>;
+
+const ShopProfileGraphqlResponseSchema = object({
+  data: optional(
+    object({
+      shop: optional(
+        nullable(
+          object({
+            name: optional(nullable(string())),
+            shopOwnerName: optional(nullable(string())),
+            contactEmail: optional(nullable(string())),
+            shopAddress: optional(
+              nullable(
+                object({
+                  countryCodeV2: optional(nullable(string())),
+                }),
+              ),
+            ),
+            currencyCode: optional(nullable(string())),
+            ianaTimezone: optional(nullable(string())),
+            plan: optional(
+              nullable(
+                object({
+                  publicDisplayName: optional(nullable(string())),
+                }),
+              ),
+            ),
+          }),
+        ),
+      ),
+    }),
+  ),
+  errors: optional(
+    nullable(
+      array(
+        object({
+          message: optional(nullable(string())),
+        }),
+      ),
+    ),
+  ),
+});
+
 export async function markAppInstalled(shop: string): Promise<boolean> {
   const installedAt = new Date();
+
   try {
     await db.opsInstallation.create({ data: { shop, installedAt } });
+
     return true;
   } catch (error) {
-    if (!isUniqueConstraintError(error)) throw error;
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      throw error;
+    }
   }
 
   const reinstalled = await db.opsInstallation.updateMany({
     where: { shop, uninstalledAt: { not: null } },
     data: { installedAt, uninstalledAt: null },
   });
+
   return reinstalled.count > 0;
 }
 
@@ -57,9 +117,11 @@ export async function notifyAppInstalled(
   admin?: AdminGraphqlClient,
 ): Promise<void> {
   const app = configuredAppId();
+
   if (!app || !notifierConfigured()) return;
 
   let shopProfile: ShopProfile | undefined;
+
   if (admin) {
     try {
       shopProfile = await queryShopProfile(admin);
@@ -71,43 +133,42 @@ export async function notifyAppInstalled(
     }
   }
 
-  await sendOpsEvent({
+  const event: OpsEvent = {
     id: lifecycleEventId(app, "app.installed", shop, accessToken),
     app,
     type: "app.installed",
     shop,
     occurredAt: new Date().toISOString(),
-    ...(shopProfile ? { shopProfile } : {}),
-  });
+  };
+
+  if (shopProfile) event.shopProfile = shopProfile;
+
+  await sendOpsEvent(event);
 }
 
 export async function notifyAppUninstalled(
   shop: string,
   webhookId: string | null,
-  payload: unknown,
+  payload: AppUninstalledWebhookPayload | undefined,
 ): Promise<void> {
   const app = configuredAppId();
+
   if (!app || !notifierConfigured()) return;
 
-  const shopProfile = shopProfileFromUninstallPayload(payload);
-  await sendOpsEvent({
-    id: lifecycleEventId(
-      app,
-      "app.uninstalled",
-      shop,
-      webhookId ?? randomUUID(),
-    ),
+  const event: OpsEvent = {
+    id: lifecycleEventId(app, "app.uninstalled", shop, webhookId ?? randomUUID()),
     app,
     type: "app.uninstalled",
     shop,
     occurredAt: new Date().toISOString(),
-    ...(shopProfile ? { shopProfile } : {}),
-  });
+  };
+
+  if (payload) event.shopProfile = shopProfileFromUninstallPayload(payload);
+
+  await sendOpsEvent(event);
 }
 
-export async function queryShopProfile(
-  admin: AdminGraphqlClient,
-): Promise<ShopProfile> {
+export async function queryShopProfile(admin: AdminGraphqlClient): Promise<ShopProfile> {
   const response = await admin.graphql(`#graphql
     query OpsLifecycleShopProfile {
       shop {
@@ -121,68 +182,53 @@ export async function queryShopProfile(
       }
     }
   `);
+
   if (!response.ok) {
     throw new Error(`Admin GraphQL returned HTTP ${response.status}`);
   }
 
-  const body = (await response.json()) as {
-    data?: {
-      shop?: {
-        name?: unknown;
-        shopOwnerName?: unknown;
-        contactEmail?: unknown;
-        shopAddress?: { countryCodeV2?: unknown } | null;
-        currencyCode?: unknown;
-        ianaTimezone?: unknown;
-        plan?: { publicDisplayName?: unknown } | null;
-      } | null;
-    };
-    errors?: unknown;
-  };
-  if (body.errors || !body.data?.shop) {
+  const body = parse(ShopProfileGraphqlResponseSchema, await response.json());
+
+  if ((body.errors?.length ?? 0) > 0 || !body.data?.shop) {
     throw new Error("Admin GraphQL shop profile response was incomplete");
   }
 
   const shop = body.data.shop;
+
   return {
-    name: nullableString(shop.name),
-    ownerName: nullableString(shop.shopOwnerName),
-    email: nullableString(shop.contactEmail),
-    countryCode: nullableString(shop.shopAddress?.countryCodeV2),
-    currencyCode: nullableString(shop.currencyCode),
-    ianaTimezone: nullableString(shop.ianaTimezone),
-    shopifyPlan: nullableString(shop.plan?.publicDisplayName),
+    name: shop.name ?? null,
+    ownerName: shop.shopOwnerName ?? null,
+    email: shop.contactEmail ?? null,
+    countryCode: shop.shopAddress?.countryCodeV2 ?? null,
+    currencyCode: shop.currencyCode ?? null,
+    ianaTimezone: shop.ianaTimezone ?? null,
+    shopifyPlan: shop.plan?.publicDisplayName ?? null,
   };
 }
 
 export function shopProfileFromUninstallPayload(
-  payload: unknown,
-): ShopProfile | undefined {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return undefined;
-  }
-
-  const record = payload as Record<string, unknown>;
+  payload: AppUninstalledWebhookPayload,
+): ShopProfile {
   return {
-    name: nullableString(record.name),
-    ownerName: nullableString(record.shop_owner),
-    email: nullableString(record.email),
-    countryCode: nullableString(record.country_code),
-    currencyCode: nullableString(record.currency),
-    ianaTimezone: nullableString(record.iana_timezone),
-    shopifyPlan: nullableString(record.plan_display_name),
+    name: payload.name ?? null,
+    ownerName: payload.shop_owner ?? null,
+    email: payload.email ?? null,
+    countryCode: payload.country_code ?? null,
+    currencyCode: payload.currency ?? null,
+    ianaTimezone: payload.iana_timezone ?? null,
+    shopifyPlan: payload.plan_display_name ?? null,
   };
 }
 
-export async function sendOpsEvent(
-  event: OpsEvent,
-): Promise<"sent" | "disabled" | "failed"> {
+export async function sendOpsEvent(event: OpsEvent): Promise<"sent" | "disabled" | "failed"> {
   const endpoint = process.env.OPS_NOTIFIER_URL?.trim();
   const secret = process.env.OPS_NOTIFIER_SECRET?.trim();
+
   if (!endpoint || !secret) return "disabled";
 
   const body = JSON.stringify(event);
   const timestamp = String(Math.floor(Date.now() / 1_000));
+
   const signature = `sha256=${createHmac("sha256", secret)
     .update(`${timestamp}.${body}`)
     .digest("hex")}`;
@@ -199,9 +245,11 @@ export async function sendOpsEvent(
       body,
       signal: AbortSignal.timeout(3_000),
     });
+
     if (!response.ok) {
       throw new Error(`Ops notifier returned HTTP ${response.status}`);
     }
+
     return "sent";
   } catch (error) {
     console.error("Ops notification delivery failed", {
@@ -210,19 +258,18 @@ export async function sendOpsEvent(
       type: event.type,
       message: error instanceof Error ? error.message : "Unknown error",
     });
+
     return "failed";
   }
 }
 
 function notifierConfigured(): boolean {
-  return Boolean(
-    process.env.OPS_NOTIFIER_URL?.trim() &&
-      process.env.OPS_NOTIFIER_SECRET?.trim(),
-  );
+  return Boolean(process.env.OPS_NOTIFIER_URL?.trim() && process.env.OPS_NOTIFIER_SECRET?.trim());
 }
 
 function configuredAppId(): string | undefined {
   const appId = process.env.OPS_NOTIFIER_APP_ID?.trim();
+
   return appId || undefined;
 }
 
@@ -236,20 +283,6 @@ function lifecycleEventId(
     .update(`${shop}:${deduplicationKey}`)
     .digest("hex")
     .slice(0, 32);
+
   return `${app}:${type}:${digest}`;
-}
-
-function nullableString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim();
-  return normalized || null;
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2002"
-  );
 }

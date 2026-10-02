@@ -16,6 +16,7 @@ function getConfig() {
   };
 
   let extensions: string[] = [];
+
   try {
     extensions = fs.readdirSync("./extensions");
   } catch {
@@ -25,9 +26,11 @@ function getConfig() {
   for (const entry of extensions) {
     const extensionPath = `./extensions/${entry}`;
     const schema = `${extensionPath}/schema.graphql`;
+
     if (!fs.existsSync(schema)) {
       continue;
     }
+
     config.projects[entry] = {
       schema,
       documents: [`${extensionPath}/**/*.graphql`],

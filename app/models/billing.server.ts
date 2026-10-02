@@ -1,4 +1,5 @@
 import db from "../db.server";
+import { array, object, optional, safeParse, string } from "valibot";
 import {
   getShopifyAppPricingConfig,
   readActiveSubscription,
@@ -10,17 +11,16 @@ interface AdminGraphqlClient {
   graphql(query: string): Promise<Response>;
 }
 
-interface ShopIdResponse {
-  data?: { shop?: { id?: string } };
-  errors?: Array<{ message?: string }>;
-}
+const ShopIdResponseSchema = object({
+  data: optional(
+    object({
+      shop: optional(object({ id: optional(string()) })),
+    }),
+  ),
+  errors: optional(array(object({ message: optional(string()) }))),
+});
 
-const SHOP_ID_QUERY = [
-  "#graphql",
-  "query BillingShopId {",
-  "  shop { id }",
-  "}",
-].join("\n");
+const SHOP_ID_QUERY = ["#graphql", "query BillingShopId {", "  shop { id }", "}"].join("\n");
 
 export interface BillingState {
   shop: string;
@@ -48,11 +48,14 @@ export type BillingReconciliation =
     };
 
 export class BillingEntitlementError extends Error {}
+
 export class BillingConfigurationError extends Error {}
+
 export class BillingUnavailableError extends Error {}
 
 export async function getBillingState(shop: string) {
   const state = await db.appBillingState.findUnique({ where: { shop } });
+
   return state ? toBillingState(state) : null;
 }
 
@@ -65,6 +68,7 @@ export async function reconcileBillingState(input: {
 }): Promise<BillingReconciliation> {
   const config = input.config ?? getShopifyAppPricingConfig();
   const current = await getBillingState(input.shop);
+
   if (!config.partnerApi) {
     return {
       configured: false,
@@ -75,15 +79,22 @@ export async function reconcileBillingState(input: {
   }
 
   const now = input.now ?? new Date();
+
   try {
     const shopResponse = await input.admin.graphql(SHOP_ID_QUERY);
-    const shopPayload = (await shopResponse.json()) as ShopIdResponse;
+
+    const shopPayloadResult = safeParse(ShopIdResponseSchema, await shopResponse.json());
+
+    if (!shopPayloadResult.success) {
+      throw new Error("Shopify Admin API returned an invalid shop response");
+    }
+
+    const shopPayload = shopPayloadResult.output;
     const adminError = shopPayload.errors?.[0]?.message;
     const shopId = shopPayload.data?.shop?.id;
+
     if (!shopResponse.ok || adminError || !shopId) {
-      throw new Error(
-        adminError || "Shopify Admin API did not return the shop ID",
-      );
+      throw new Error(adminError || "Shopify Admin API did not return the shop ID");
     }
 
     const subscription = await readActiveSubscription(
@@ -92,6 +103,7 @@ export async function reconcileBillingState(input: {
       config.partnerApi,
       input.fetcher,
     );
+
     const state = await db.appBillingState.upsert({
       where: { shop: input.shop },
       create: billingStateData(input.shop, subscription, now),
@@ -110,6 +122,7 @@ export async function reconcileBillingState(input: {
       shop: input.shop,
       message,
     });
+
     if (current) {
       const state = await db.appBillingState.update({
         where: { shop: input.shop },
@@ -117,6 +130,7 @@ export async function reconcileBillingState(input: {
           billingUnavailableSince: current.billingUnavailableSince ?? now,
         },
       });
+
       return {
         configured: true,
         state: toBillingState(state),
@@ -140,33 +154,29 @@ export async function requirePlanHandle(input: {
   allowedPlanHandles: readonly string[];
 }): Promise<BillingState> {
   const allowedHandles = new Set(input.allowedPlanHandles);
+
   if (allowedHandles.size === 0) {
-    throw new Error(
-      "At least one allowed Shopify App Pricing plan handle is required",
-    );
+    throw new Error("At least one allowed Shopify App Pricing plan handle is required");
   }
 
   const result = await reconcileBillingState(input);
+
   if (!result.configured) {
-    throw new BillingConfigurationError(
-      "Shopify App Pricing Partner API is not configured",
-    );
+    throw new BillingConfigurationError("Shopify App Pricing Partner API is not configured");
   }
+
   if (result.billingUnavailable) {
-    throw new BillingUnavailableError(
-      "Shopify App Pricing could not verify the current plan.",
-    );
+    throw new BillingUnavailableError("Shopify App Pricing could not verify the current plan.");
   }
 
   const state = result.state;
+
   const eligible = Boolean(
-    state?.activeSubscription &&
-      state.planItemHandles.some((handle) => allowedHandles.has(handle)),
+    state?.activeSubscription && state.planItemHandles.some((handle) => allowedHandles.has(handle)),
   );
+
   if (!eligible || !state) {
-    throw new BillingEntitlementError(
-      "This feature requires an eligible app plan.",
-    );
+    throw new BillingEntitlementError("This feature requires an eligible app plan.");
   }
 
   return state;
@@ -195,17 +205,11 @@ function billingStateData(
   return {
     shop,
     activeSubscription: Boolean(subscription),
-    planItemHandlesJson: JSON.stringify(
-      subscription?.items.map((item) => item.handle) ?? [],
-    ),
+    planItemHandlesJson: JSON.stringify(subscription?.items.map((item) => item.handle) ?? []),
     planItemDescriptionsJson: JSON.stringify(
-      subscription?.items.flatMap((item) =>
-        item.description ? [item.description] : [],
-      ) ?? [],
+      subscription?.items.flatMap((item) => (item.description ? [item.description] : [])) ?? [],
     ),
-    trialEndsAt: subscription?.trialEndsAt
-      ? new Date(subscription.trialEndsAt)
-      : null,
+    trialEndsAt: subscription?.trialEndsAt ? new Date(subscription.trialEndsAt) : null,
     currentPeriodEnd: subscription?.currentBillingCycle?.endTime
       ? new Date(subscription.currentBillingCycle.endTime)
       : null,
@@ -238,11 +242,9 @@ function toBillingState(state: {
 
 function parseStringArray(value: string): string[] {
   try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) &&
-      parsed.every((entry) => typeof entry === "string")
-      ? parsed
-      : [];
+    const result = safeParse(array(string()), JSON.parse(value));
+
+    return result.success ? result.output : [];
   } catch {
     return [];
   }
