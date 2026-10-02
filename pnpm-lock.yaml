@@ -12,7 +12,7 @@ importers:
   .:
     dependencies:
       '@prisma/client':
-        specifier: ^6.16.3
+        specifier: ^6.19.0
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       '@react-router/dev':
         specifier: 7.18.2
@@ -30,11 +30,11 @@ importers:
         specifier: ^4.2.4
         version: 4.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@shopify/shopify-app-react-router':
-        specifier: ^1.1.0
-        version: 1.2.1(react-dom@18.3.1(react@18.3.1))(react-router@7.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
+        specifier: ^3.0.1
+        version: 3.0.1(react-dom@18.3.1(react@18.3.1))(react-router@7.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       '@shopify/shopify-app-session-storage-prisma':
-        specifier: ^9.0.0
-        version: 9.0.1(@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3))(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.1(@shopify/shopify-api@13.1.0))(prisma@6.19.3(typescript@5.9.3))
+        specifier: ^11.0.0
+        version: 11.0.0(@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3))(@shopify/shopify-api@15.0.0)(@shopify/shopify-app-session-storage@7.0.0(@shopify/shopify-api@15.0.0))(prisma@6.19.3(typescript@5.9.3))
       isbot:
         specifier: ^5.1.31
         version: 5.2.2
@@ -42,7 +42,7 @@ importers:
         specifier: 1.428.6
         version: 1.428.6(@types/react@18.3.31)(react@18.3.1)
       prisma:
-        specifier: ^6.16.3
+        specifier: ^6.19.0
         version: 6.19.3(typescript@5.9.3)
       react:
         specifier: ^18.3.1
@@ -1316,8 +1316,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@shopify/admin-api-client@1.1.2':
-    resolution: {integrity: sha512-sV5gS8x4kj0KLULlOJkoBzm+tu6tn+1PCK9a6inySv5qtzmf/JxDWtLgaW9vRXeXHo/Sl/p3mBWhY3//fKA8iw==}
+  '@shopify/admin-api-client@2.0.0':
+    resolution: {integrity: sha512-ivvOKq08S4xdETu3R7ZxIGTX2Q//dKef7jLY7Ne9HSlg+UJzk7PqdY+h61pqQzvZ3AeNN8AJG2eV20ycuJowfg==}
 
   '@shopify/api-codegen-preset@2.0.1':
     resolution: {integrity: sha512-sceMo8f10Vok7o409EVrh4XZcUyZJo25vkMmYR4CB8ERRbuXU+C5Icx+szvczqTciZYC2xkdkCczV6KSNUbdNA==}
@@ -1332,8 +1332,8 @@ packages:
   '@shopify/app-bridge-types@0.7.2':
     resolution: {integrity: sha512-Fl4GnQXzJ3h43kvD/i8e1iWP+ynIxue0L1Eezf7GVoGiIYjvu3BqX3au+kHXGx7Us6nQ4Ku6lKdFZP+nAFepCQ==}
 
-  '@shopify/graphql-client@1.4.2':
-    resolution: {integrity: sha512-C/fEyx6BZmTGeJv0HSsduhfn5ZbkXk0nePkyo0+xXxorP1I+uvx9pobdFxTfiPnOrh+P6QiKzBgIviksnSo4YA==}
+  '@shopify/graphql-client@2.0.0':
+    resolution: {integrity: sha512-SfIZa6J9Px4ZSMIVdPLNupeSyqznovV6pDVxwC1rmbi0JTVj2q/CCsOf9hLQvsMdBiyJDHVnoVHGpBzlhpwO2Q==}
 
   '@shopify/graphql-codegen@0.1.0':
     resolution: {integrity: sha512-G3sSesLj7Czt/J2Bj+XlQ8u4pkfQEt32hsjoS3UGZlf1eAiVw0aBBddp+NI5HqBAi0gM/f7GLRAhG3kktPhZmA==}
@@ -1344,33 +1344,33 @@ packages:
   '@shopify/polaris-types@1.0.1':
     resolution: {integrity: sha512-BZs47atXnaOVqFrCfTeXc6Vz8Vk8Vpj9o3nx/lYTvy9i4pPvd4K4mRKIhjrer2NWITCMvY6+nZ6GE1I9Qfq4rQ==}
 
-  '@shopify/shopify-api@13.1.0':
-    resolution: {integrity: sha512-TwYL9kPxOgQwwlc9tmnAmSDs79Gdg9QLaIMCfkaCJxkhWxIHVkPWa74GvbBwnmTtB8jkg61Ja4/Qxrk9bCBUiA==}
-    engines: {node: '>=20.0.0'}
+  '@shopify/shopify-api@15.0.0':
+    resolution: {integrity: sha512-u6PWWulYVJ1/bxDiKWg5g/GqcfunDm2Wcn37E1oZEs10bkkZ1nxV6T9jX6jGFCdLOBSw685+e6fxyeyjWEvUYA==}
+    engines: {node: '>=22.0.0'}
 
-  '@shopify/shopify-app-react-router@1.2.1':
-    resolution: {integrity: sha512-37FtkGoHkvXFUsBU/ibhTrlAGoogfq0VodyEckkggi35lrjZfOGX7xKzMWW13QyD6q8bGg/wCBNOW4WANvewEA==}
-    engines: {node: '>=20.0.0'}
+  '@shopify/shopify-app-react-router@3.0.1':
+    resolution: {integrity: sha512-PZQ9JcsISgXQQZJQYAiRhTzPn+rZZrilOfMDUEYrGC5RmSg4GxmyAlEYCzpZsQ2X7E9jJQNbmp25vZe6iFmUoQ==}
+    engines: {node: '>=22.0.0'}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
       react-router: ^7.6.2
 
-  '@shopify/shopify-app-session-storage-prisma@9.0.1':
-    resolution: {integrity: sha512-f/RT4X6hSADfh53dl9+cc0Ev9QcTwy01GoJFnNQRmjpSsNdDq7oBuCFbz/IufU+C9MJ/1wGi5haOr0R7VIcd2Q==}
+  '@shopify/shopify-app-session-storage-prisma@11.0.0':
+    resolution: {integrity: sha512-NQzJ/WsWYIj0oW/ZZUd255CSVFjIFY+4lyLs6UkM4GdH4KEudaAuCf/oBvaO52tc2rgb4i/PWgvRppDovYJUUA==}
     peerDependencies:
       '@prisma/client': ^6.19.0
-      '@shopify/shopify-api': ^13.0.0
-      '@shopify/shopify-app-session-storage': ^5.0.0
+      '@shopify/shopify-api': ^15.0.0
+      '@shopify/shopify-app-session-storage': ^7.0.0
       prisma: ^6.19.0
 
-  '@shopify/shopify-app-session-storage@5.0.1':
-    resolution: {integrity: sha512-VL66qkz2w1x5hH14v+swFZAnN36VrFuVi/Lc6FkLTJxCSvSu4fPNYn04kjIxGykgsRb7trLBXC7mF3j8yDUFeA==}
+  '@shopify/shopify-app-session-storage@7.0.0':
+    resolution: {integrity: sha512-dvbHwCHgUjiw8wJiBV/GHRZwX2wwqeYeHd2l9z5TjFbk5k/K0bTPPsaCWkU9o0E231GeGIrwagUgci6UPrMcbw==}
     peerDependencies:
-      '@shopify/shopify-api': ^13.0.0
+      '@shopify/shopify-api': ^15.0.0
 
-  '@shopify/storefront-api-client@1.0.10':
-    resolution: {integrity: sha512-A0ItFW58L5+y/jnnJDEsmt2YcQSt2BG+pNoQOYRpPBJaOLpTj7A13q1QVrE5XYVGZCA6ZQ6FqAtgosHHrkut0Q==}
+  '@shopify/storefront-api-client@2.0.0':
+    resolution: {integrity: sha512-rWmPqZ+ZqsxdePpH/4sPdd+jUWHiSUeEWolJNQpqb+1KLlx79khdfJO1M9z9HfG2H0aHkmS+fnx2jr46q7NCGQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -4404,9 +4404,9 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.63.4':
     optional: true
 
-  '@shopify/admin-api-client@1.1.2':
+  '@shopify/admin-api-client@2.0.0':
     dependencies:
-      '@shopify/graphql-client': 1.4.2
+      '@shopify/graphql-client': 2.0.0
 
   '@shopify/api-codegen-preset@2.0.1(@types/node@25.9.8)(typescript@5.9.3)':
     dependencies:
@@ -4437,7 +4437,7 @@ snapshots:
     dependencies:
       '@standard-schema/spec': 1.1.0
 
-  '@shopify/graphql-client@1.4.2': {}
+  '@shopify/graphql-client@2.0.0': {}
 
   '@shopify/graphql-codegen@0.1.0(graphql@16.14.2)':
     dependencies:
@@ -4451,43 +4451,43 @@ snapshots:
 
   '@shopify/polaris-types@1.0.1': {}
 
-  '@shopify/shopify-api@13.1.0':
+  '@shopify/shopify-api@15.0.0':
     dependencies:
-      '@shopify/admin-api-client': 1.1.2
-      '@shopify/graphql-client': 1.4.2
-      '@shopify/storefront-api-client': 1.0.10
+      '@shopify/admin-api-client': 2.0.0
+      '@shopify/graphql-client': 2.0.0
+      '@shopify/storefront-api-client': 2.0.0
       compare-versions: 6.1.1
       isbot: 5.2.2
       jose: 5.10.0
       lossless-json: 4.3.1
       tslib: 2.8.1
 
-  '@shopify/shopify-app-react-router@1.2.1(react-dom@18.3.1(react@18.3.1))(react-router@7.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
+  '@shopify/shopify-app-react-router@3.0.1(react-dom@18.3.1(react@18.3.1))(react-router@7.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@shopify/admin-api-client': 1.1.2
-      '@shopify/shopify-api': 13.1.0
-      '@shopify/shopify-app-session-storage': 5.0.1(@shopify/shopify-api@13.1.0)
-      '@shopify/storefront-api-client': 1.0.10
+      '@shopify/admin-api-client': 2.0.0
+      '@shopify/shopify-api': 15.0.0
+      '@shopify/shopify-app-session-storage': 7.0.0(@shopify/shopify-api@15.0.0)
+      '@shopify/storefront-api-client': 2.0.0
       compare-versions: 6.1.1
       isbot: 5.2.2
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-router: 7.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
-  '@shopify/shopify-app-session-storage-prisma@9.0.1(@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3))(@shopify/shopify-api@13.1.0)(@shopify/shopify-app-session-storage@5.0.1(@shopify/shopify-api@13.1.0))(prisma@6.19.3(typescript@5.9.3))':
+  '@shopify/shopify-app-session-storage-prisma@11.0.0(@prisma/client@6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3))(@shopify/shopify-api@15.0.0)(@shopify/shopify-app-session-storage@7.0.0(@shopify/shopify-api@15.0.0))(prisma@6.19.3(typescript@5.9.3))':
     dependencies:
       '@prisma/client': 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
-      '@shopify/shopify-api': 13.1.0
-      '@shopify/shopify-app-session-storage': 5.0.1(@shopify/shopify-api@13.1.0)
+      '@shopify/shopify-api': 15.0.0
+      '@shopify/shopify-app-session-storage': 7.0.0(@shopify/shopify-api@15.0.0)
       prisma: 6.19.3(typescript@5.9.3)
 
-  '@shopify/shopify-app-session-storage@5.0.1(@shopify/shopify-api@13.1.0)':
+  '@shopify/shopify-app-session-storage@7.0.0(@shopify/shopify-api@15.0.0)':
     dependencies:
-      '@shopify/shopify-api': 13.1.0
+      '@shopify/shopify-api': 15.0.0
 
-  '@shopify/storefront-api-client@1.0.10':
+  '@shopify/storefront-api-client@2.0.0':
     dependencies:
-      '@shopify/graphql-client': 1.4.2
+      '@shopify/graphql-client': 2.0.0
 
   '@standard-schema/spec@1.1.0': {}
 
