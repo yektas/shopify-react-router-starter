@@ -19,3 +19,9 @@ Use the [Shopify AI Toolkit](https://shopify.dev/docs/apps/build/ai-toolkit) for
 - Keep custom layouts responsive, provide visible keyboard-focus states, and respect reduced-motion preferences.
 - Use tabular numerals for prices, counts, and other changing numeric values.
 - Keep Inter as the app UI font through the existing Shopify CDN stylesheet. Introduce another font only for content with a specific typographic need.
+
+
+## Linting and formatting
+
+- After making code changes, run `npx oxlint --fix`, then run `npx oxfmt`.
+- Before finishing, run `npx oxlint --deny-warnings --format=agent`.
